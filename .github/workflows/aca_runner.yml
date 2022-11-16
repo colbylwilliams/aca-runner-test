@@ -1,0 +1,51 @@
+name: ACA runner test
+
+on:
+  workflow_dispatch:
+
+env:
+  AZ_STORAGE_ACCOUNT: acarunner
+  AZ_QUEUE_NAME: aca-runner-scaler
+
+jobs:
+  # External Job to create and associate workflow with a unique QueueId on Azure queue to scale up KEDA
+  scale-keda-queue-up:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Login to Azure
+        run: az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
+
+      - name: scale up self hosted
+        id: scaleJob
+        run: |
+          OUTPUT=$(az storage message put --queue-name "${{ env.AZ_QUEUE_NAME }}" --content "${{ github.run_id }}" --account-name "${{ env.AZ_STORAGE_ACCOUNT }}")
+          echo "scaleJobId=$(echo "$OUTPUT" | grep "id" | sed 's/^.*: //' | sed 's/,*$//g')" >> $GITHUB_OUTPUT
+          echo "scaleJobPop=$(echo "$OUTPUT" | grep "popReceipt" | sed 's/^.*: //' | sed 's/,*$//g')" >> $GITHUB_OUTPUT
+
+    outputs:
+      scaleJobId: ${{ steps.scaleJob.outputs.scaleJobId }}
+      scaleJobPop: ${{ steps.scaleJob.outputs.scaleJobPop }}
+
+  # Subsequent Jobs runs-on [self-hosted]. Job1, Job2, JobN etc etc
+  testRunner:
+    needs: scale-keda-queue-up
+    runs-on: [self-hosted]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
+      - name: Display Terraform Version
+        run: terraform --version
+      - name: Display Azure-CLI Version
+        run: az --version
+      - name: Delay runner finish (2min)
+        run: sleep 2m
+
+      # Remove unique QueueId on Azure queue associated with workflow as final step to scale down KEDA
+      - name: Login to Azure
+        run: az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
+
+      - name: scale down self hosted
+        run: |
+          az storage message delete --id ${{needs.scale-keda-queue-up.outputs.scaleJobId}} --pop-receipt ${{needs.scale-keda-queue-up.outputs.scaleJobPop}} --queue-name "${{ env.AZ_QUEUE_NAME }}" --account-name "${{ env.AZ_STORAGE_ACCOUNT }}"
