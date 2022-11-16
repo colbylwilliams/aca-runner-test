@@ -13,8 +13,8 @@ jobs:
     uses: ./.github/workflows/scale_runners_up.yml
     secrets: inherit
     with:
-      queue_name: ${{ env.AZ_QUEUE_NAME }}
-      storage_account: ${{ env.AZ_STORAGE_ACCOUNT }}
+      queue_name: aca-runner-scaler
+      storage_account: acarunner
 
   test_runners:
     name: Test the Runner
@@ -44,7 +44,7 @@ jobs:
     uses: ./.github/workflows/scale_runners_down.yml
     secrets: inherit
     with:
-      queue_name: ${{ env.AZ_QUEUE_NAME }}
-      storage_account: ${{ env.AZ_STORAGE_ACCOUNT }}
+      queue_name: aca-runner-scaler
+      storage_account: acarunner
       message_id: ${{ needs.scale_runners_up.outputs.message_id }}
       message_receipt: ${{ needs.scale_runners_up.outputs.message_receipt }}
