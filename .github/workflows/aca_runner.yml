@@ -1,4 +1,4 @@
-name: ACA runner test
+name: ACA Runner Test
 
 on:
   workflow_dispatch:
