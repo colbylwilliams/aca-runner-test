@@ -4,33 +4,23 @@ on:
   workflow_dispatch:
 
 env:
-  AZ_STORAGE_ACCOUNT: acarunner
   AZ_QUEUE_NAME: aca-runner-scaler
+  AZ_STORAGE_ACCOUNT: acarunner
 
 jobs:
-  # External Job to create and associate workflow with a unique QueueId on Azure queue to scale up KEDA
   scale_runners_up:
-    runs-on: ubuntu-latest
+    name: Scale Runners Up
+    uses: ./.github/workflows/scale_runners_up.yml
+    secrets: inherit
+    with:
+      queue_name: ${{ env.AZ_QUEUE_NAME }}
+      storage_account: ${{ env.AZ_STORAGE_ACCOUNT }}
 
-    steps:
-      - name: Login to Azure
-        run: az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p=${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
-
-      - name: scale up self hosted
-        id: scale_runners
-        run: |
-          message=$( az storage message put --auth-mode login --account-name ${{ env.AZ_STORAGE_ACCOUNT }} -q ${{ env.AZ_QUEUE_NAME }} --content "${{ github.run_id }}" )
-          echo "message_id=$( echo $message | jq -r '.id' )" >> $GITHUB_OUTPUT
-          echo "message_receipt=$( echo $message | jq -r '.popReceipt' )" >> $GITHUB_OUTPUT
-
-    outputs:
-      message_id: ${{ steps.scale_runners.outputs.message_id }}
-      message_receipt: ${{ steps.scale_runners.outputs.message_receipt }}
-
-  # Subsequent Jobs runs-on [self-hosted]. Job1, Job2, JobN etc etc
-  testRunner:
+  test_runners:
+    name: Test the Runner
     needs: scale_runners_up
-    runs-on: [self-hosted]
+    runs-on: [self-hosted, ACA]
+
     steps:
       - uses: actions/checkout@v3
 
@@ -46,10 +36,15 @@ jobs:
       - name: Delay runner finish (2min)
         run: sleep 2m
 
-      # Remove unique QueueId on Azure queue associated with workflow as final step to scale down KEDA
-      - name: Login to Azure
-        run: az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p=${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
-
-      - name: scale down self hosted
-        run: |
-          az storage message delete --auth-mode login --account-name ${{ env.AZ_STORAGE_ACCOUNT }} -q ${{ env.AZ_QUEUE_NAME }} --id "${{ needs.scale_runners_up.outputs.message_id }}" --pop-receipt "${{ needs.scale_runners_up.outputs.message_receipt }}"
+  scale_runners_down:
+    if: ${{ always() }}
+    needs:
+      - scale_runners_up
+      - test_runners
+    uses: ./.github/workflows/scale_runners_down.yml
+    secrets: inherit
+    with:
+      queue_name: ${{ env.AZ_QUEUE_NAME }}
+      storage_account: ${{ env.AZ_STORAGE_ACCOUNT }}
+      message_id: ${{ needs.scale_runners_up.outputs.message_id }}
+      message_receipt: ${{ needs.scale_runners_up.outputs.message_receipt }}

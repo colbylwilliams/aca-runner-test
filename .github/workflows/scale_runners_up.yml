@@ -1,0 +1,46 @@
+name: Scale ACA Runners Up
+
+on:
+  workflow_call:
+    inputs:
+      storage_account:
+        type: string
+        required: true
+        description: 'The name of the storage account'
+      queue_name:
+        type: string
+        required: true
+        description: 'The name of the message queue'
+
+    # Map the workflow outputs to job outputs
+    outputs:
+      message_id:
+        description: 'The ID of the message'
+        value: ${{ jobs.scale_up.outputs.message_id }}
+      message_receipt:
+        description: 'The PopReceipt of the message'
+        value: ${{ jobs.scale_up.outputs.message_receipt }}
+
+env:
+  AZ_STORAGE_ACCOUNT: acarunner
+  AZ_QUEUE_NAME: aca-runner-scaler
+
+jobs:
+  scale_up:
+    name: Scale Runners Up
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Login to Azure
+        run: az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p=${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
+
+      - name: scale up self hosted
+        id: scale_runners
+        run: |
+          message=$( az storage message put --auth-mode login --account-name ${{ inputs.storage_account }} -q ${{ inputs.queue_name }} --content "${{ github.run_id }}" )
+          echo "message_id=$( echo $message | jq -r '.id' )" >> $GITHUB_OUTPUT
+          echo "message_receipt=$( echo $message | jq -r '.popReceipt' )" >> $GITHUB_OUTPUT
+
+    outputs:
+      message_id: ${{ steps.scale_runners.outputs.message_id }}
+      message_receipt: ${{ steps.scale_runners.outputs.message_receipt }}
