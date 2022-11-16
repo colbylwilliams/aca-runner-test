@@ -21,9 +21,9 @@ on:
         description: 'The PopReceipt of the message'
 
 jobs:
-  scale_up:
+  scale_down:
     name: Scale Runners Down
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ACA]
 
     steps:
       - name: Login to Azure
