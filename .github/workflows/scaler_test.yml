@@ -1,0 +1,85 @@
+name: ACA Scaler Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test_runners_a:
+    name: Test the Runner A
+
+    runs-on: [self-hosted, ACA]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Display Terraform Version
+        run: terraform --version
+
+      - name: Display Azure-CLI Version
+        run: az --version
+
+      - name: Delay runner finish (2min)
+        run: sleep 2m
+
+  test_runners_b:
+    name: Test the Runner B
+
+    runs-on: [self-hosted, ACA]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Display Terraform Version
+        run: terraform --version
+
+      - name: Display Azure-CLI Version
+        run: az --version
+
+      - name: Delay runner finish (2min)
+        run: sleep 2m
+
+  test_runners_c:
+    name: Test the Runner C
+
+    runs-on: [self-hosted, ACA]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Display Terraform Version
+        run: terraform --version
+
+      - name: Display Azure-CLI Version
+        run: az --version
+
+      - name: Delay runner finish (2min)
+        run: sleep 2m
+
+  test_runners_d:
+    name: Test the Runner D
+
+    runs-on: [self-hosted, ACA]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Display Terraform Version
+        run: terraform --version
+
+      - name: Display Azure-CLI Version
+        run: az --version
+
+      - name: Delay runner finish (2min)
+        run: sleep 2m
